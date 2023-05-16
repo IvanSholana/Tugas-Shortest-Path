@@ -82,61 +82,94 @@ plt.show()
 def get_keys_from_value(dictionary, value):
     return list(filter(lambda x: dictionary[x] == value, dictionary))
 
+def hitung_garis_lurus(start,tujuan):
+    nilai_x = math.pow(position[tujuan][0] - position[start][0],2)
+    nilai_y = math.pow(position[tujuan][1] - position[start][1],2)
+    return math.sqrt(nilai_y + nilai_x)
 
-def cari_depo(start, path):
-    calon_path = sorted(
-        G.edges(start.id, data=True), key=lambda edge: edge[2]["weight"]
-    )
-    print(f"depo calon path {calon_path}")
+def cari_pelanggan_belum(start,galon):
+    heuristik_value = {}
+    tujuan = pelanggan[-1]
+    # print(tujuan)
+    for i in node:
+        # Generate All Heuristik Value
+        heuristik_value[i.id] = (hitung_garis_lurus(i.id,tujuan))
+    # Sort Calon Path Berdasarkan Cost + Heursitik Value (A* Algorithm)
+    calon_path = sorted(G.edges(start.id,data=True), key=lambda edge: edge[2]['weight'] + heuristik_value[edge[1]])
+    print(f"calon path {calon_path}")
+    # Ambil Tujuannya Saja
+    posible_path = [i[1] for i in calon_path if i[1] not in closed2]
+    if tujuan in posible_path or start == tujuan:
+        # Mengambil index dari tujuan
+        current_node = get_keys_from_value(labeling,posible_path[posible_path.index(tujuan)])
+        galon -= current_node[0].kebutuhan
+        pelanggan.pop() # Karena sudah diantar maka dihapus dari list pelanggan
+        telusuri(current_node[0],galon,closed,path)
+    else:
+        posible_path = [i[1] for i in calon_path if i[1] not in closed2]
+        for i in len(posible_path):
+            current_node = get_keys_from_value(labeling,posible_path[0])
+            tmp_path.append(current_node[0].id)
+            cari_posible_path(current_node,galon)
+
+# def cari_posible_path(start,galon):
+    
+
+
+def cari_depo(start,galon):
+    calon_path = sorted(G.edges(start.id,data=True), key=lambda edge: edge[2]['weight'])
+    # print(f"depo calon path {calon_path}")
     posible_path = [i[1] for i in calon_path if "depo air" in i[1]]
     if len(posible_path) == 0:
         posible_path = [i[1] for i in calon_path if "pelanggan" in i[1]]
         path.append(f"mencari depo melalui {posible_path[0]} --> ")
-        print(f"mencari depo melalui {posible_path[0]} --> ")
-        current_node = get_keys_from_value(labeling, posible_path[0])
-        print(current_node[0].id)
-        cari_depo(current_node[0], path)
+        # print(f"mencari depo melalui {posible_path[0]} --> ")
+        current_node = get_keys_from_value(labeling,posible_path[0])
+        # print(f"{current_node[0].id} {posible_path[0]}")
+        # print(current_node[0].id)
+        cari_depo(current_node[0],galon,path)
     else:
-        current_node = get_keys_from_value(labeling, posible_path[0])
+        # print(f"posible path {posible_path}")
+        current_node = get_keys_from_value(labeling,posible_path[0])
         path.append(f"reload air di {posible_path[0]} --> ")
-        print(f"reload air di {posible_path[0]} --> ")
-        return current_node[0]
-
-
-def telusuri(start, galon, closed, path):
-    current = start
+        # print(f"reload air di {posible_path[0]} --> ")
+        # print(f"curreant node {type(current_node[0])} dengan {current_node[0].id}")
+        galon = 50
+        telusuri(current_node[0],galon)
+        
+def telusuri(start,galon):
     # generate all posible edge
-    calon_path = sorted(
-        G.edges(start.id, data=True), key=lambda edge: edge[2]["weight"]
-    )
+    calon_path = sorted(G.edges(start.id,data=True), key=lambda edge: edge[2]['weight'])
     # mencari pelanggan yang belum diberi air dari calon path yang sudah digenerate
     posible_path = [i[1] for i in calon_path if i[1] in pelanggan]
-    print(f"posible path : {posible_path}")
+    # print(f"posible path : {posible_path}")
     if len(posible_path) == 0:
-        return 0
+        if len(pelanggan) == 0:
+            return 0
+        else:
+            cari_pelanggan_belum(start,galon)
     else:
         current_node = 0
         for i in posible_path:
             # mencari key yang mana merupakan node berdasarkan nama labelingnya
-            current_node = get_keys_from_value(labeling, i)
+            current_node = get_keys_from_value(labeling,i)
             id = current_node[0].id
             kebutuhan = current_node[0].kebutuhan
-            if galon >= kebutuhan:
+            if galon >= kebutuhan and id not in closed:
                 closed.append(id)
                 galon -= kebutuhan
                 path.append(f"{id} sisa galon {galon} --> ")
-                print(f"di {id} kebutuhan {kebutuhan} sisa galon {galon} --> ")
-                print(f"{id} {pelanggan}")
+                # print(f"di {id} kebutuhan {kebutuhan} sisa galon {galon} --> ")
+                # print(f"{id} {pelanggan}")
                 pelanggan.remove(id)
-                telusuri(current_node[0], galon, closed, path)
-        start = cari_depo(current_node[0], path)
-        galon = 50
-        telusuri(start, galon, closed, path)
-
-
+                telusuri(current_node[0],galon)
+        cari_depo(current_node[0],galon)
+        
 start = node[random.choice(node_depo)]
 closed = []
+closed2=[]
 path = [f"{start.id} --> "]
+tmp_path = []
 galon = 50
-telusuri(start, galon, closed, path)
+find = telusuri(start,galon)
 path
